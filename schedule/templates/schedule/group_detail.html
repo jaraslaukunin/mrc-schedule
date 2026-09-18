@@ -35,6 +35,24 @@
         </div>
     </div>
 </div>
+<div class="filter-card">
+    <h2 class="filter-title"><i class="bi bi-clock-history"></i> Вычитка часов</h2>
+    <div class="lessons-grid" style="margin-top: 15px;">
+        {% for item in hours_info %}
+        <div class="lesson-card">
+            <h4 class="lesson-subject">{{ item.plan.subject.title }}</h4>
+            <p class="meta-item">Преподаватель: {{ item.plan.teacher.name }}</p>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px;">
+                <span>Проведено: <strong>{{ item.spent }} ч.</strong></span>
+                <span>Осталось: <strong>{{ item.remains }} ч.</strong></span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; margin-top: 10px;">
+                <div style="width: {{ item.percent }}%; height: 100%; background: var(--accent); border-radius: 4px;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
 
 <div class="filter-card">
     <h2 class="filter-title">Расписание группы</h2>
@@ -98,7 +116,183 @@
     <h3>Расписание отсутствует</h3>
 </div>
 {% endif %}
+<style>
+    .teacher-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+    }
 
+    .teacher-profile {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .teacher-avatar-large i {
+        font-size: 80px;
+    }
+
+    .teacher-main-info h1 {
+        margin: 0 0 5px 0;
+    }
+
+    .teacher-title {
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* Карточка фильтра */
+    .filter-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .filter-title {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        color: #333;
+    }
+
+    /* Кнопки даты */
+    .date-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .date-btn {
+        padding: 8px 20px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .date-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .date-input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+    }
+
+    /* Расписание */
+    .schedule-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .lesson-row {
+        display: flex;
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .lesson-time-cell {
+        background: #f8f9fa;
+        padding: 20px;
+        min-width: 120px;
+        text-align: center;
+        border-right: 1px solid #eee;
+    }
+
+    .lesson-number {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .lesson-time-range {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .lesson-data-cell {
+        flex: 1;
+        padding: 15px;
+    }
+
+    /* Карточка занятия */
+    .lesson-card {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    .lesson-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .lesson-subject {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        color: #333;
+    }
+
+    .lesson-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .meta-item {
+        font-size: 13px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .no-lessons {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+        background: #fafafa;
+        border-radius: 10px;
+    }
+
+    /* Сетка для часов */
+    .lessons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+    }
+
+    /* Кнопка назад */
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #6c757d;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        text-decoration: none;
+        margin-top: 20px;
+        transition: all 0.3s;
+    }
+
+    .back-btn:hover {
+        background: #5a6268;
+        color: white;
+    }
+</style>
 <a href="{% url 'groups' %}" class="back-btn">
     <i class="bi bi-arrow-left"></i>
     Вернуться к списку групп

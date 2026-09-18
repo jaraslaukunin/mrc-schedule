@@ -1,133 +1,284 @@
 {% extends 'schedule/base.html' %}
 
-{% block title %}Преподаватели колледжа{% endblock %}
+{% block title %}Преподаватели{% endblock %}
 
 {% block content %}
+
 <div class="filter-card">
-    <div class="filter-header">
-        <h2 class="filter-title">Преподаватели</h2>
-        <a href="/admin/schedule/teacher/add/" class="add-btn" target="_blank">
-            <i class="bi bi-person-plus"></i>
-            Добавить преподавателя
-        </a>
-    </div>
+    <h3 class="filter-title">
+        <i class="bi bi-person-badge"></i> Преподаватели колледжа
+    </h3>
 </div>
 
-<div class="teachers-grid">
-    {% for teacher in teachers %}
-    <a href="{% url 'teacher_detail' teacher.id %}" class="teacher-card">
-        <div class="teacher-avatar">
-            <i class="bi bi-person-circle"></i>
-        </div>
-        <div class="teacher-info">
-            <h3>{{ teacher.name }}</h3>
-            <p class="teacher-subjects">
-                <i class="bi bi-book"></i>
-                {{ teacher.schedule_set.count }} занятий
-            </p>
-        </div>
-        <div class="teacher-arrow">
-            <i class="bi bi-chevron-right"></i>
-        </div>
-    </a>
-    {% empty %}
-    <div class="empty-state">
-        <i class="bi bi-people"></i>
-        <h3>Преподаватели не добавлены</h3>
-        <p>Добавьте преподавателей через админ-панель</p>
-    </div>
-    {% endfor %}
+<div class="table-container">
+    <table class="teachers-table">
+        <thead>
+            <tr>
+                <th><i class="bi bi-person"></i> Преподаватель</th>
+                <th><i class="bi bi-clock-history"></i> Всего часов</th>
+                <th><i class="bi bi-info-circle"></i> </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for teacher in teachers %}
+            <tr class="teacher-row" data-teacher-id="{{ teacher.id }}">
+                <td class="teacher-name-cell">
+                    <div class="teacher-avatar">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <div class="teacher-info">
+                        <div class="teacher-name">{{ teacher.name }}</div>
+                        <div class="teacher-subjects-preview">
+                            {% for plan in teacher.academicplan_set.all|slice:":3" %}
+                            <span class="subject-tag">{{ plan.subject.title }}</span>
+                            {% endfor %}
+                            {% if teacher.academicplan_set.count > 3 %}
+                            <span class="subject-tag more">+{{ teacher.academicplan_set.count|add:"-3" }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td class="teacher-hours">
+                    <div class="hours-stat">
+                        <span class="hours-total">{{ teacher.total_hours }} ч.</span>
+                    </div>
+                </td>
+                <td class="teacher-actions">
+                    <a href="{% url 'teacher_detail' teacher.id %}" class="view-btn">
+                        <i class="bi bi-eye"></i> Смотреть
+                    </a>
+                </td>
+            </tr>
+            <tr class="teacher-subjects-detail" id="subjects-{{ teacher.id }}" style="display: none;">
+                <td colspan="3" class="subjects-detail-cell">
+                    <div class="subjects-list">
+                        <strong><i class="bi bi-book"></i> Предметы:</strong>
+                        {% for plan in teacher.academicplan_set.all %}
+                        <span class="subject-detail-tag">
+                            {{ plan.subject.title }} ({{ plan.group.name }}, {{ plan.total_hours }} ч.)
+                        </span>
+                        {% empty %}
+                        <span class="no-subjects">Нет предметов</span>
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="empty-table">Нет преподавателей</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <style>
-.teachers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-    margin-top: 30px;
-}
+    .table-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
 
-.teacher-card {
-    display: flex;
-    align-items: center;
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 20px;
-    text-decoration: none;
-    color: inherit;
-    box-shadow: var(--shadow);
-    transition: var(--transition);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-}
+    .teachers-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
 
-.teacher-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-hover);
-    border-color: var(--accent);
-}
+    .teachers-table th {
+        background: #f8f9fa;
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #e2e8f0;
+    }
 
-.teacher-avatar {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, var(--primary-light), var(--accent));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 20px;
-    flex-shrink: 0;
-}
+    .teachers-table th i {
+        margin-right: 6px;
+        color: #667eea;
+    }
 
-.teacher-avatar i {
-    font-size: 30px;
-    color: white;
-}
+    .teachers-table td {
+        padding: 16px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
 
-.teacher-info {
-    flex: 1;
-}
+    .teacher-row {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
 
-.teacher-info h3 {
-    margin: 0 0 5px 0;
-    color: var(--primary-dark);
-}
+    .teacher-row:hover {
+        background: #f8fafc;
+    }
 
-.teacher-subjects {
-    color: #666;
-    font-size: 14px;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
+    /* Ячейка с именем */
+    .teacher-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
 
-.teacher-arrow {
-    color: #ccc;
-    font-size: 20px;
-}
+    .teacher-avatar {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
 
-.teacher-card:hover .teacher-arrow {
-    color: var(--accent);
-    transform: translateX(5px);
-}
+    .teacher-avatar i {
+        font-size: 24px;
+        color: white;
+    }
 
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 50px 20px;
-    background: var(--bg-gray);
-    border-radius: var(--border-radius);
-}
+    .teacher-info {
+        flex: 1;
+    }
 
-.empty-state i {
-    font-size: 48px;
-    color: #6c757d;
-    margin-bottom: 20px;
-}
+    .teacher-name {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 16px;
+        margin-bottom: 6px;
+    }
 
-.empty-state h3 {
-    color: var(--primary-dark);
-    margin-bottom: 10px;
-}
+    .teacher-subjects-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .subject-tag {
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        color: #4a5568;
+    }
+
+    .subject-tag.more {
+        background: #667eea;
+        color: white;
+    }
+
+    /* Часы */
+    .hours-stat {
+        display: inline-block;
+    }
+
+    .hours-total {
+        font-weight: 600;
+        color: #2d3748;
+        background: #e0e7ff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+    }
+
+    /* Кнопка */
+    .view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 16px;
+        background: #667eea;
+        color: white;
+        border-radius: 20px;
+        text-decoration: none;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+
+    .view-btn:hover {
+        background: #5a67d8;
+        transform: translateY(-1px);
+    }
+
+    /* Детали предметов (разворачивается) */
+    .subjects-detail-cell {
+        background: #fafbfc;
+        padding: 15px 20px !important;
+    }
+
+    .subjects-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .subjects-list strong {
+        color: #4a5568;
+        margin-right: 5px;
+    }
+
+    .subject-detail-tag {
+        background: #e2e8f0;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        color: #2d3748;
+    }
+
+    .no-subjects {
+        color: #999;
+        font-size: 13px;
+    }
+
+    .empty-table {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+        .teachers-table th,
+        .teachers-table td {
+            padding: 12px;
+        }
+
+        .teacher-name-cell {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .teacher-subjects-preview {
+            justify-content: center;
+        }
+
+        .subjects-list {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
 </style>
+
+<script>
+    // Клик по строке учителя - разворачивает предметы
+    document.querySelectorAll('.teacher-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Если кликнули по кнопке "Смотреть" - не разворачиваем
+            if (e.target.closest('.view-btn')) {
+                return;
+            }
+
+            const teacherId = this.dataset.teacherId;
+            const detailRow = document.getElementById(`subjects-${teacherId}`);
+
+            if (detailRow.style.display === 'none') {
+                detailRow.style.display = 'table-row';
+            } else {
+                detailRow.style.display = 'none';
+            }
+        });
+    });
+</script>
+
 {% endblock %}

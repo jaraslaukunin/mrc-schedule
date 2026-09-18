@@ -6,110 +6,416 @@
 
 <div class="teacher-header">
     <div class="teacher-profile">
-        <div class="teacher-avatar-large">
-            <i class="bi bi-person-circle"></i>
-        </div>
-
+        <div class="teacher-avatar-large"><i class="bi bi-person-circle"></i></div>
         <div class="teacher-main-info">
             <h1>{{ teacher.name }}</h1>
-            <p class="teacher-title">Преподаватель</p>
-
-            <div class="teacher-stats">
-                <div class="stat-item">
-                    <i class="bi bi-calendar-week"></i>
-                    <span>{{ teacher.schedule_set.count }} занятий в неделю</span>
-                </div>
-
-                <div class="stat-item">
-                    <i class="bi bi-people"></i>
-                    <span>{{ teacher.schedule_set.values_list|length }} групп</span>
-                </div>
-            </div>
-
-            {% if teacher.curated_groups.all %}
-            <div class="teacher-stats" style="margin-top:15px;">
-                <div class="stat-item">
-                    <i class="bi bi-person-badge"></i>
-                    <span>Куратор групп:</span>
-                </div>
-            </div>
-
-            <ul>
-                {% for group in teacher.curated_groups.all %}
-                <li>
-                    <a href="{% url 'group_detail' group.id %}">
-                        {{ group.name }}
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-            {% endif %}
+            <p class="teacher-title">Преподаватель колледжа</p>
         </div>
     </div>
 </div>
 
 <div class="filter-card">
-    <h2 class="filter-title">Расписание преподавателя</h2>
+    <h3 class="filter-title">Выбор даты для расписания</h3>
+    <form method="get">
+        <div class="date-buttons">
+            <button type="submit" name="date_mode" value="today" class="date-btn {% if date_mode == 'today' %}active{% endif %}">Сегодня</button>
+            <button type="submit" name="date_mode" value="tomorrow" class="date-btn {% if date_mode == 'tomorrow' %}active{% endif %}">Завтра</button>
+            <input type="date" name="custom_date" class="date-input" value="{{ custom_date }}">
+            <button type="submit" name="date_mode" value="custom" class="date-btn">Выбрать</button>
+        </div>
+        <div style="margin-top: 10px;">
+            Расписание на: <strong>{{ selected_date }} ({{ selected_day_full }})</strong>
+        </div>
+    </form>
 </div>
 
-{% if schedule_by_day %}
-    {% for day, lessons in schedule_by_day.items %}
-    <div class="schedule-day">
-        <div class="day-header">
-            <h3 class="day-name">{{ day }}</h3>
-        </div>
-
-        <div class="lessons-grid">
-            {% for lesson in lessons %}
-            <div class="lesson-card">
-                <span class="lesson-time">{{ lesson.time|time:"H:i" }}</span>
-
-                <h4 class="lesson-subject">{{ lesson.subject.title }}</h4>
-
-                <div class="lesson-meta">
-
-                    <div class="meta-item">
-                        <i class="bi bi-people"></i>
-                        <span>Группа: <strong>{{ lesson.group.name }}</strong></span>
-                    </div>
-
-                    <div class="meta-item">
-                        <i class="bi bi-clock"></i>
-                        <span>
-                            {% if lesson.duration == 'half1' %}
-                                1 половина
-                            {% elif lesson.duration == 'half2' %}
-                                2 половина
-                            {% else %}
-                                Полная пара
-                            {% endif %}
-                        </span>
-                    </div>
-
-                    {% if lesson.get_classroom_full %}
-                    <div class="meta-item">
-                        <i class="bi bi-geo-alt"></i>
-                        <span>{{ lesson.get_classroom_full }}</span>
-                    </div>
-                    {% endif %}
-                </div>
+<div class="schedule-wrapper">
+    <div class="schedule-table">
+        {% for item in schedule_table %}
+        <div class="lesson-row {% if item.is_now %}current-lesson{% endif %}">
+            <div class="lesson-time-cell">
+                <div class="lesson-number">{{ item.num }} пара</div>
+                <div class="lesson-time-range">{{ item.time_range }}</div>
             </div>
-            {% endfor %}
+            <div class="lesson-data-cell">
+                {% for lesson in item.lessons %}
+                <div class="lesson-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <h4 class="lesson-subject" style="margin: 0;">{{ lesson.subject.title }}</h4>
+                        {% if item.is_now %}
+                        <div class="current-badge">
+                            <i class="bi bi-play-fill"></i> Идет сейчас
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="lesson-meta">
+                        <div class="meta-item">
+                            <i class="bi bi-people"></i>
+                            <a href="{% url 'group_detail' lesson.group.id %}">{{ lesson.group.name }}</a>
+                        </div>
+                        <div class="meta-item">
+                            <i class="bi bi-geo-alt"></i> {{ lesson.get_classroom_full }}
+                        </div>
+                        <div class="meta-item">
+                            <i class="bi bi-clock"></i>
+                            {% if lesson.duration == 'half1' %}1 половина
+                            {% elif lesson.duration == 'half2' %}2 половина
+                            {% else %}Полная пара{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="no-lessons">Нет занятия</div>
+                {% endfor %}
+            </div>
         </div>
-
+        {% endfor %}
     </div>
-    {% endfor %}
-{% else %}
-<div class="empty-state">
-    <i class="bi bi-calendar-x"></i>
-    <h3>Расписание не найдено</h3>
-    <p>Для этого преподавателя нет занятий</p>
 </div>
-{% endif %}
 
-<a href="{% url 'teachers' %}" class="back-btn">
-    <i class="bi bi-arrow-left"></i>
-    Вернуться к списку преподавателей
-</a>
+<div class="filter-card">
+    <h3 class="filter-title">Общая вычитка часов (План)</h3>
+    <div class="lessons-grid">
+        {% for stat in hours_info %}
+        <div class="stat-card">
+            <div class="stat-subject">{{ stat.plan.subject.title }}</div>
+            <div class="stat-teacher">Группа: {{ stat.plan.group.name }}</div>
+            <div class="stat-hours">
+                <span>Выполнено:</span>
+                <strong>{{ stat.spent }} ч.</strong>
+            </div>
+            <div class="stat-hours">
+                <span>Осталось:</span>
+                <strong>{{ stat.remains }} ч.</strong>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ stat.percent }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* Карточка преподавателя */
+    .teacher-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 20px;
+    }
+
+    .teacher-profile {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .teacher-avatar-large i {
+        font-size: 80px;
+    }
+
+    .teacher-main-info h1 {
+        margin: 0 0 5px 0;
+    }
+
+    .teacher-title {
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* Карточка фильтра */
+    .filter-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .filter-title {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .date-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .date-btn {
+        padding: 8px 20px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .date-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .date-input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+    }
+
+    /* Обертка расписания */
+    .schedule-wrapper {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .schedule-table {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .lesson-row {
+        display: flex;
+        border-bottom: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+
+    .lesson-row:last-child {
+        border-bottom: none;
+    }
+
+    /* Текущее занятие */
+    .current-lesson {
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.03) 100%);
+    }
+
+    .current-lesson .lesson-time-cell {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.03) 100%);
+        border-left: 3px solid #22c55e;
+    }
+
+    .current-lesson .lesson-card {
+        border-left: 3px solid #22c55e;
+    }
+
+    /* Бейдж */
+    .current-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #22c55e;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        animation: blink 1s infinite;
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.85; transform: scale(1.02); }
+    }
+
+    /* Ячейка времени */
+    .lesson-time-cell {
+        background: #f8fafc;
+        padding: 20px;
+        min-width: 120px;
+        text-align: center;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    .lesson-number {
+        font-weight: bold;
+        font-size: 16px;
+        color: #333;
+    }
+
+    .lesson-time-range {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    /* Ячейка контента */
+    .lesson-data-cell {
+        flex: 1;
+        padding: 15px;
+    }
+
+    /* Карточка занятия */
+    .lesson-card {
+        background: #f8fafc;
+        border-left: 3px solid #cbd5e1;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    .lesson-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .lesson-subject {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .lesson-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .meta-item {
+        font-size: 13px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .meta-item i {
+        font-size: 13px;
+    }
+
+    .meta-item a {
+        color: #666;
+        text-decoration: none;
+    }
+
+    .meta-item a:hover {
+        color: #667eea;
+    }
+
+    .no-lessons {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+        background: #fafafa;
+        border-radius: 10px;
+    }
+
+    /* Статистика */
+    .lessons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-card {
+        background: #f8fafc;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stat-subject {
+        font-weight: 600;
+        font-size: 15px;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .stat-teacher {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 10px;
+    }
+
+    .stat-hours {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #667eea;
+        border-radius: 3px;
+        transition: width 0.3s;
+    }
+
+    /* Кнопка назад */
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #6c757d;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        text-decoration: none;
+        margin-top: 20px;
+        transition: all 0.3s;
+    }
+
+    .back-btn:hover {
+        background: #5a6268;
+        color: white;
+    }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+        .teacher-profile {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .lesson-row {
+            flex-direction: column;
+        }
+
+        .lesson-time-cell {
+            min-width: auto;
+            border-right: none;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+        }
+
+        .date-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .date-btn, .date-input {
+            width: 100%;
+        }
+
+        .lessons-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<a href="{% url 'teachers' %}" class="back-btn"><i class="bi bi-arrow-left"></i> Назад к списку</a>
 
 {% endblock %}

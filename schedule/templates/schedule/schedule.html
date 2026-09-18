@@ -5,458 +5,527 @@
 {% block content %}
 
 <div class="filter-card">
-    <div class="filter-header">
-        <h2 class="filter-title">Расписание занятий</h2>
-
-        <form method="get" class="filter-controls">
-
+    <h3 class="filter-title">
+        <i class="bi bi-calendar-week"></i> Расписание занятий
+    </h3>
+    <form method="get">
+        <div class="filter-controls">
             <div class="filter-group">
                 <label class="filter-label">
-                    <i class="bi bi-people"></i>
-                    Выберите группу
+                    <i class="bi bi-people"></i> Группа
                 </label>
                 <div class="select-wrapper">
                     <select name="group" class="filter-select" onchange="this.form.submit()">
                         {% for group in groups %}
-                        <option value="{{ group.id }}"
-                                {% if group.id == selected_group %}selected{% endif %}>
+                        <option value="{{ group.id }}" {% if group.id == selected_group %}selected{% endif %}>
                             {{ group.name }}
                         </option>
                         {% endfor %}
                     </select>
-                    <i class="bi bi-chevron-down"></i>
                 </div>
             </div>
+
             <div class="filter-group">
                 <label class="filter-label">
-                    <i class="bi bi-calendar-event"></i>
-                    Дата
+                    <i class="bi bi-calendar"></i> Дата
                 </label>
-                <div class="select-wrapper">
-                    <select name="date_mode" class="filter-select" onchange="this.form.submit()">
-                        {% if date_mode == 'today' %}
-                            <option value="today" selected>Сегодня</option>
-                        {% else %}
-                            <option value="today">Сегодня</option>
-                        {% endif %}
-                        {% if date_mode == 'tomorrow' %}
-                        <option value="tomorrow" selected>Завтра</option>
-                        {% else %} <option value="tomorrow">Завтра</option>
-                        {% endif %}
-                        {% if date_mode == 'custom' %}
-                        <option value="custom" selected>Выбрать дату…</option>
-                        {% else %} <option value="custom">Выбрать дату…</option>
-                        {% endif %}
-                    </select>
-                    <i class="bi bi-chevron-down"></i>
+                <div class="date-buttons">
+                    <button type="submit" name="date_mode" value="today" class="date-btn {% if date_mode == 'today' %}active{% endif %}">Сегодня</button>
+                    <button type="submit" name="date_mode" value="tomorrow" class="date-btn {% if date_mode == 'tomorrow' %}active{% endif %}">Завтра</button>
+                    <input type="date" name="custom_date" class="date-input" value="{{ custom_date }}" onchange="this.form.submit()">
                 </div>
             </div>
-            {% if date_mode == 'custom' %}
-            <div class="custom-date-wrapper">
-                <input type="date" name="custom_date" value="{{ custom_date }}" class="filter-date">
-                <button type="submit" class="date-apply-btn">
-                    Показать
-                </button>
+        </div>
+    </form>
+</div>
+
+<div class="schedule-wrapper">
+    <div class="schedule-header">
+        <div>
+            <h3>{{ selected_day_full }} ({{ today_date }})</h3>
+            {% if selected_group_obj %}
+            <div class="selected-group-badge">
+                <i class="bi bi-people-fill"></i> {{ selected_group_obj.name }}
             </div>
             {% endif %}
-        </form>
-    </div>
-</div>
-
-<div class="schedule-table-container">
-    <div class="day-header mb-4">
-        <h3 class="day-name">{{ selected_day_full }} ({{ today_date }})</h3>
-
-        {% if selected_group_obj %}
-        <div class="selected-group">
-            <i class="bi bi-people-fill"></i>
-            Группа: {{ selected_group_obj.name }}
         </div>
-        {% endif %}
     </div>
 
-    <div class="lessons-timeline">
+    <div class="schedule-table">
         {% for row in schedule_table %}
-<div class="lesson-row {% if row.is_now %}current-lesson{% endif %}">
-    <div class="lesson-time-cell">
-        <div class="lesson-time-range">
-            {{ row.lesson_name }}<br>
-            {{ row.time_range }}
-        </div>
-    </div>
-    <div class="lesson-content-cell">
-        <div class="lesson-slot">
-            {% for lesson in row.lessons %}
-            <div class="lesson-card lesson-part-{{ row.lessons|length }}">
-                <h4 class="lesson-subject">{{ lesson.subject.title }}</h4>
-
-                <div class="lesson-meta">
-                    <div class="meta-item">
-                        <i class="bi bi-person"></i>
-                        <a href="{% url 'teacher_detail' lesson.teacher.id %}">
-                            {{ lesson.teacher.name }}
-                        </a>
+        <div class="lesson-row {% if row.is_now %}current-lesson{% endif %}">
+            <div class="lesson-time-cell">
+                <div class="lesson-number">{{ forloop.counter }} пара</div>
+                <div class="lesson-time-range">{{ row.time_range }}</div>
+            </div>
+            <div class="lesson-data-cell">
+                {% for lesson in row.lessons %}
+                <div class="lesson-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <h4 class="lesson-subject" style="margin: 0;">{{ lesson.subject.title }}</h4>
+                        {% if row.is_now %}
+                        <div class="current-badge">
+                            <i class="bi bi-play-fill"></i> Идет сейчас
+                        </div>
+                        {% endif %}
                     </div>
-
-                    <div class="meta-item">
-                        <i class="bi bi-people"></i>
-                        <a href="{% url 'group_detail' lesson.group.id %}">
-                            {{ lesson.group.name }}
-                        </a>
-                    </div>
-
-                    {% if lesson.get_classroom_full %}
-                    <div class="meta-item">
-                        <i class="bi bi-geo-alt"></i>
-                        <span>{{ lesson.get_classroom_full }}</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="meta-item">
-                        <i class="bi bi-clock"></i>
-                        <span>
-                            {% if lesson.duration == 'half1' %}
-                                1 половина
-                            {% elif lesson.duration == 'half2' %}
-                                2 половина
-                            {% else %}
-                                Полная пара
-                            {% endif %}
-                        </span>
+                    <div class="lesson-meta">
+                        <div class="meta-item">
+                            <i class="bi bi-person"></i>
+                            <a href="{% url 'teacher_detail' lesson.teacher.id %}">{{ lesson.teacher.name }}</a>
+                        </div>
+                        <div class="meta-item">
+                            <i class="bi bi-geo-alt"></i> {{ lesson.get_classroom_full }}
+                        </div>
+                        <div class="meta-item">
+                            <i class="bi bi-clock"></i>
+                            {% if lesson.duration == 'half1' %}1 половина
+                            {% elif lesson.duration == 'half2' %}2 половина
+                            {% else %}Полная пара{% endif %}
+                        </div>
                     </div>
                 </div>
+                {% empty %}
+                <div class="no-lessons">Нет занятия</div>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div class="lesson-card lesson-empty">
-                <span>Нет занятия</span>
-            </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
 </div>
-{% endfor %}
+
+<div class="filter-card" style="margin-top: 20px;">
+    <h3 class="filter-title">
+        <i class="bi bi-clock-history"></i> Учет учебных часов
+    </h3>
+    <div class="lessons-grid">
+        {% for item in hours_stats %}
+        <div class="stat-card">
+            <div class="stat-subject">{{ item.plan.subject.title }}</div>
+            <div class="stat-teacher">{{ item.plan.teacher.name }}</div>
+            <div class="stat-hours">
+                <span>Вычитано:</span>
+                <strong>{{ item.spent }} ч.</strong>
+            </div>
+            <div class="stat-hours">
+                <span>Осталось:</span>
+                <strong>{{ item.remains }} ч.</strong>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ item.percent }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
+
+<button type="button" class="reset-btn-text" onclick="resetGroup()">
+    <i class="bi bi-arrow-repeat"></i> Сбросить группу
+</button>
 
 <style>
 
-.schedule-table-container {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 30px;
-    box-shadow: var(--shadow);
-}
-
-.lesson-slot {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    height: 100%;
-    width: 100%;
-}
-
-.lesson-card {
-    background: white;
-    border-radius: 12px;
-    padding: 10px 12px;
-    box-shadow: var(--shadow);
-    width: 100%;
-    overflow: hidden;
-}
-
-.lesson-part-1 {
-    height: 100%;
-}
-
-.lesson-part-2 {
-    height: 50%;
-}
-
-.lesson-part-3 {
-    height: 33%;
-}
-
-.lesson-empty {
-    height: 100%;
-    background: #f8f9fa;
-    color: #999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-
-.day-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #f1f3f5;
-}
-
-.day-name {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--primary-dark);
-    margin: 0;
-}
-
-.selected-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--primary-light);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-weight: 500;
-}
-
-.lessons-timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.lesson-row {
-    display: flex;
-    gap: 20px;
-    min-height: 100px;
-    transition: 0.3s;
-    border-radius: 12px;
-}
-
-.lesson-row.empty-lesson {
-    opacity: 0.7;
-}
-
-.lesson-time-cell {
-    width: 180px;
-    flex-shrink: 0;
-    background: var(--bg-gray);
-    border-radius: 10px;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    border-left: 4px solid var(--accent);
-}
-
-.lesson-number {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--primary-dark);
-    margin-bottom: 5px;
-}
-
-.lesson-time-range {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--primary-light);
-    margin-bottom: 5px;
-    text-align: center;
-}
-
-.lesson-name {
-    font-size: 12px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.lesson-content-cell {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    height: 100%;
-}
-
-.lesson-card {
-    width: 100%;
-    height: 100%;
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    border: 1px solid #e9ecef;
-    transition: var(--transition);
-}
-
-.lesson-card:hover {
-    transform: translateX(5px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    border-color: var(--accent);
-}
-
-.lesson-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.lesson-subject {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--primary-dark);
-    margin: 0;
-}
-
-.lesson-type {
-    background: var(--accent);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 15px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.lesson-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 15px;
-}
-
-.meta-item i {
-    color: var(--primary-light);
-    width: 20px;
-    text-align: center;
-}
-
-.empty-lesson-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-gray);
-    border-radius: 10px;
-    padding: 30px;
-    color: #999;
-    border: 2px dashed #dee2e6;
-}
-
-.empty-lesson-placeholder i {
-    font-size: 32px;
-    margin-bottom: 10px;
-    opacity: 0.5;
-}
-
-.teacher-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.teacher-link:hover {
-    color: var(--primary-dark);
-    text-decoration: underline;
-}
-
-/* Подсветка текущей пары */
-.current-lesson {
-    border: 2px solid var(--accent);
-    background: rgba(0, 150, 255, 0.1);
-    animation: pulse 2s infinite;
-    border-radius: 12px;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(0,150,255,0.4); }
-    100% { box-shadow: 0 0 10px 10px rgba(0,150,255,0); }
-}
-
-.custom-date-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 30px;
-}
-
-.filter-date {
-    padding: 10px 15px;
-    border-radius: 10px;
-    border: 2px solid var(--accent);
-    font-size: 16px;
-    background: white;
-    color: var(--primary-dark);
-}
-
-.date-apply-btn {
-    padding: 10px 20px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.date-apply-btn:hover {
-    background: var(--primary-dark);
-}
-
-
-@media (max-width: 768px) {
-
-    .lesson-row {
-        flex-direction: column;
-        padding: 12px;
-        border-radius: 12px;
-        background: white;
+    .reset-btn-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: #f0f0f0;
+        border: 1px solid #e2e8f0;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: #666;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
     }
 
-    .lesson-time-cell {
+    .reset-btn-text i {
+        font-size: 16px;
+    }
+
+    .reset-btn-text:hover {
+        background: #ef4444;
+        border-color: #ef4444;
+        color: white;
+    }
+
+    .reset-btn-text:hover i {
+        transform: rotate(180deg);
+    }
+
+    .reset-btn-text:active {
+        transform: scale(0.98);
+    }
+    /* Карточка фильтра */
+    .filter-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .filter-title {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: #666;
+        margin-bottom: 6px;
+    }
+
+    .filter-select {
         width: 100%;
-        border-left: none;
-        border-bottom: 3px solid var(--accent);
-        padding: 10px 0;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .date-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .date-btn {
+        padding: 8px 20px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .date-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .date-input {
+        padding: 7px 12px;
+        border: 1px solid #ddd;
+        border-radius: 25px;
+    }
+
+    /* Обертка расписания */
+    .schedule-wrapper {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .schedule-header {
+        padding: 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .schedule-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .selected-group-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #667eea;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        margin-top: 8px;
+    }
+
+    /* Таблица расписания */
+    .schedule-table {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .lesson-row {
+        display: flex;
+        border-bottom: 1px solid #e2e8f0;
+        transition: all 0.3s;
+    }
+
+    .lesson-row:last-child {
+        border-bottom: none;
+    }
+
+    /* Текущее занятие */
+    .current-lesson {
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.03) 100%);
+    }
+
+    .current-lesson .lesson-time-cell {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.03) 100%);
+        border-left: 3px solid #22c55e;
+    }
+
+    .current-lesson .lesson-card {
+        border-left: 3px solid #22c55e;
+    }
+
+    /* Бейдж */
+    .current-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #22c55e;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        animation: blink 1s infinite;
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.85; transform: scale(1.02); }
+    }
+
+    /* Ячейка времени */
+    .lesson-time-cell {
+        background: #f8fafc;
+        padding: 20px;
+        min-width: 120px;
+        text-align: center;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    .lesson-number {
+        font-weight: bold;
+        font-size: 16px;
+        color: #333;
+    }
+
+    .lesson-time-range {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    /* Ячейка контента */
+    .lesson-data-cell {
+        flex: 1;
+        padding: 15px;
+    }
+
+    /* Карточка занятия */
+    .lesson-card {
+        background: #f8fafc;
+        border-left: 3px solid #cbd5e1;
+        padding: 12px 15px;
+        border-radius: 10px;
         margin-bottom: 10px;
     }
 
-    .lesson-card {
-        padding: 15px;
-        border: 1px solid #eee;
-        box-shadow: none;
+    .lesson-card:last-child {
+        margin-bottom: 0;
     }
 
     .lesson-subject {
-        font-size: 18px;
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .lesson-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
     }
 
     .meta-item {
-        font-size: 14px;
+        font-size: 13px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 5px;
     }
-}
+
+    .meta-item i {
+        font-size: 13px;
+    }
+
+    .meta-item a {
+        color: #666;
+        text-decoration: none;
+    }
+
+    .meta-item a:hover {
+        color: #667eea;
+    }
+
+    .no-lessons {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+        background: #fafafa;
+        border-radius: 10px;
+    }
+
+    /* Статистика */
+    .lessons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+    }
+
+    .stat-card {
+        background: #f8fafc;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        border-radius: 12px;
+        transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stat-subject {
+        font-weight: 600;
+        font-size: 15px;
+        color: #333;
+        margin-bottom: 4px;
+    }
+
+    .stat-teacher {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 10px;
+    }
+
+    .stat-hours {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .stat-hours span:first-child {
+        color: #666;
+    }
+
+    .stat-hours strong {
+        color: #333;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #667eea;
+        border-radius: 3px;
+        transition: width 0.3s;
+    }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+        .filter-controls {
+            flex-direction: column;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .lesson-row {
+            flex-direction: column;
+        }
+
+        .lesson-time-cell {
+            min-width: auto;
+            border-right: none;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+        }
+
+        .schedule-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .lessons-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const groupId = urlParams.get('group');
-    const day = urlParams.get('day');
-
-    if (groupId) {
+    document.addEventListener('DOMContentLoaded', function() {
         const groupSelect = document.querySelector('select[name="group"]');
-        if (groupSelect) groupSelect.value = groupId;
-    }
+        if (!groupSelect) return;
+        const savedGroupId = localStorage.getItem('selected_group_id');
+        if (savedGroupId && groupSelect.value !== savedGroupId) {
+            groupSelect.value = savedGroupId;
+            groupSelect.form.submit();
+        }
+        groupSelect.addEventListener('change', function() {
+            localStorage.setItem('selected_group_id', this.value);
+        });
+    });
 
-    if (day) {
-        const daySelect = document.querySelector('select[name="day"]');
-        if (daySelect) daySelect.value = day;
+    function resetGroup() {
+        localStorage.removeItem('selected_group_id');
+        const groupSelect = document.querySelector('select[name="group"]');
+        if (groupSelect) {
+            groupSelect.value = groupSelect.options[0].value;
+            groupSelect.form.submit();
+        }
     }
-});
 </script>
 
 {% endblock %}

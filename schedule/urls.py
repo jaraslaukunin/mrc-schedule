@@ -11,4 +11,5 @@ urlpatterns = [
     path('subjects/<int:subject_id>/', views.subject_detail, name='subject_detail'),
     path('teachers/<int:teacher_id>/', views.teacher_detail, name='teacher_detail'),
     path('matrix/', views.matrix_view, name='matrix'),
+
 ]

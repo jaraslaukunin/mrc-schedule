@@ -1,226 +1,228 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Schedule, Group, Teacher, Subject
+from django.db.models import Sum, Case, When, IntegerField
+from .models import Schedule, Group, Teacher, Subject, AcademicPlan
 from datetime import datetime, time, timedelta
+from django.utils import timezone
+import pytz
 import locale
 
+# Настройка временных интервалов для пар
 LESSON_TIMES = [
-    {'num': 1, 'start': time(8, 0), 'end': time(9, 40), 'name': '1 пара'},
-    {'num': 2, 'start': time(9, 50), 'end': time(11, 30), 'name': '2 пара'},
-    {'num': 3, 'start': time(11, 50), 'end': time(13, 30), 'name': '3 пара'},
-    {'num': 4, 'start': time(13, 40), 'end': time(15, 20), 'name': '4 пара'},
-    {'num': 5, 'start': time(15, 40), 'end': time(17, 20), 'name': '5 пара'},
-    {'num': 6, 'start': time(17, 30), 'end': time(19, 10), 'name': '6 пара'},
-    {'num': 7, 'start': time(19, 20), 'end': time(21, 0), 'name': '7 пара'},
+    {'num': 1, 'start': time(8, 0), 'end': time(9, 40)},
+    {'num': 2, 'start': time(9, 50), 'end': time(11, 30)},
+    {'num': 3, 'start': time(11, 50), 'end': time(13, 30)},
+    {'num': 4, 'start': time(13, 40), 'end': time(15, 20)},
+    {'num': 5, 'start': time(15, 40), 'end': time(17, 20)},
+    {'num': 6, 'start': time(17, 30), 'end': time(19, 10)},
+    {'num': 7, 'start': time(19, 20), 'end': time(21, 00)},
 ]
 
 DAYS_FULL = {
-    'Пн': 'Понедельник',
-    'Вт': 'Вторник',
-    'Ср': 'Среда',
-    'Чт': 'Четверг',
-    'Пт': 'Пятница',
-    'Сб': 'Суббота',
-}
-
-DAYS_MAPPING = {
-    'Понедельник': 'Пн',
-    'Вторник': 'Вт',
-    'Среда': 'Ср',
-    'Четверг': 'Чт',
-    'Пятница': 'Пт',
-    'Суббота': 'Сб',
+    0: 'Понедельник', 1: 'Вторник', 2: 'Среда',
+    3: 'Четверг', 4: 'Пятница', 5: 'Суббота', 6: 'Воскресенье'
 }
 
 
-def schedule_view(request):
-    try:
-        locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
-    except:
-        locale.setlocale(locale.LC_TIME, 'Russian_Russia.1251')
+def get_stats(group_id=None, teacher_id=None):
+    """Подсчет вычитанных часов на основе AcademicPlan"""
+    filters = {}
+    if group_id: filters['group_id'] = group_id
+    if teacher_id: filters['teacher_id'] = teacher_id
 
-    today = datetime.now() + timedelta(hours=3)
-    now_time = today.time()
+    plans = AcademicPlan.objects.filter(**filters).select_related('group', 'subject', 'teacher')
+    results = []
+    for p in plans:
+        spent = Schedule.objects.filter(
+            group=p.group, subject=p.subject, teacher=p.teacher
+        ).aggregate(
+            total=Sum(Case(When(duration='full', then=2), default=1, output_field=IntegerField()))
+        )['total'] or 0
 
-    group_id_raw = request.GET.get("group")
+        results.append({
+            'plan': p,
+            'spent': spent,
+            'remains': p.total_hours - spent,
+            'percent': int((spent / p.total_hours * 100)) if p.total_hours > 0 else 0
+        })
+    return results
+
+
+def get_selected_date(request):
+    """Утилита для определения даты из GET-запроса"""
     date_mode = request.GET.get("date_mode", "today")
     custom_date = request.GET.get("custom_date")
+    today = datetime.now().date()
 
-    selected_group = int(group_id_raw) if group_id_raw and group_id_raw.isdigit() else None
-
-    DEFAULT_GROUP_ID = 19
-
-    if selected_group is None:
-        selected_group = DEFAULT_GROUP_ID
-
-    if date_mode == "today":
-        selected_date = today
-    elif date_mode == "tomorrow":
-        selected_date = today + timedelta(days=1)
+    if date_mode == "tomorrow":
+        return today + timedelta(days=1), date_mode
     elif date_mode == "custom" and custom_date:
-        selected_date = datetime.strptime(custom_date, "%Y-%m-%d")
-    else:
-        selected_date = today
+        try:
+            return datetime.strptime(custom_date, "%Y-%m-%d").date(), date_mode
+        except ValueError:
+            pass
+    return today, "today"
 
-    selected_day = DAYS_MAPPING.get(selected_date.strftime('%A').capitalize(), "Пн")
-    selected_day_full = DAYS_FULL[selected_day]
 
-    groups = Group.objects.all()
+def is_current_lesson(lesson_start, lesson_end, lesson_date, selected_date):
+    """Проверяет, идет ли сейчас это занятие"""
+    from datetime import datetime
 
-    schedule_qs = Schedule.objects.filter(day_of_week=selected_day)
-    if selected_group:
-        schedule_qs = schedule_qs.filter(group_id=selected_group)
+    # Получаем текущее московское время (UTC+3)
+    now_utc = datetime.utcnow()
+    now_msk = datetime(now_utc.year, now_utc.month, now_utc.day,
+                       now_utc.hour + 3, now_utc.minute, now_utc.second)
+    now = now_msk.time()
+    today = now_msk.date()
 
-    schedule_qs = schedule_qs.order_by("time")
+    # Только для сегодняшней даты
+    if lesson_date != today:
+        return False
 
-    duration_order = {'half1': 0, 'full': 1, 'half2': 2}
+    # Проверяем, попадает ли текущее время в интервал
+    if lesson_start <= now <= lesson_end:
+        return True
+    return False
 
-    schedule_table = []
-    for lesson_time in LESSON_TIMES:
-        slot_lessons = [
-            s for s in schedule_qs
-            if lesson_time['start'] <= s.time < lesson_time['end']
-        ]
-        slot_lessons.sort(key=lambda s: duration_order.get(s.duration, 1))
 
-        is_now = (date_mode == "today") and (lesson_time['start'] <= now_time < lesson_time['end'])
+# --- ПРЕДСТАВЛЕНИЯ ---
 
-        schedule_table.append({
-            'lesson_num': lesson_time['num'],
-            'lesson_name': lesson_time['name'],
-            'time_range': f"{lesson_time['start'].strftime('%H:%M')} - {lesson_time['end'].strftime('%H:%M')}",
-            'lessons': slot_lessons,
-            'is_now': is_now,
+def schedule_view(request):
+    """Главная страница расписания группы"""
+    selected_date, date_mode = get_selected_date(request)
+    group_id = request.GET.get("group", 1)
+
+    schedule_qs = Schedule.objects.filter(
+        date=selected_date,
+        group_id=group_id
+    ).select_related('subject', 'teacher')
+
+    table = []
+    for lt in LESSON_TIMES:
+        lessons = [s for s in schedule_qs if lt['start'] <= s.time < lt['end']]
+
+        # Проверяем, идет ли сейчас эта пара
+        is_now = is_current_lesson(lt['start'], lt['end'], selected_date, selected_date)
+
+        table.append({
+            'num': lt['num'],
+            'time_range': f"{lt['start'].strftime('%H:%M')} - {lt['end'].strftime('%H:%M')}",
+            'lessons': lessons,
+            'is_now': is_now  # Добавляем флаг
         })
 
-    selected_group_obj = Group.objects.filter(id=selected_group).first() if selected_group else None
-
     return render(request, "schedule/schedule.html", {
-        "groups": groups,
-        "schedule_table": schedule_table,
-        "selected_group": selected_group,
-        "selected_group_obj": selected_group_obj,
-        "selected_day": selected_day,
-        "selected_day_full": selected_day_full,
-        "date_mode": date_mode,
-        "custom_date": custom_date,
+        "groups": Group.objects.all().order_by('name'),
+        "schedule_table": table,
+        "selected_group": int(group_id) if str(group_id).isdigit() else group_id,
+        "selected_group_obj": Group.objects.filter(id=group_id).first(),
+        "selected_day_full": DAYS_FULL[selected_date.weekday()],
         "today_date": selected_date.strftime("%d.%m.%Y"),
+        "hours_stats": get_stats(group_id=group_id),
+        "date_mode": date_mode,
+        "custom_date": request.GET.get("custom_date", "")
+    })
+
+
+def teacher_detail(request, teacher_id):
+    """Детальная страница преподавателя с фильтром по датам"""
+    teacher = get_object_or_404(Teacher, id=teacher_id)
+    selected_date, date_mode = get_selected_date(request)
+
+    current_schedule = Schedule.objects.filter(
+        teacher=teacher,
+        date=selected_date
+    ).select_related('group', 'subject')
+
+    table = []
+    for lt in LESSON_TIMES:
+        lessons = [s for s in current_schedule if lt['start'] <= s.time < lt['end']]
+
+        # Проверяем, идет ли сейчас эта пара
+        is_now = is_current_lesson(lt['start'], lt['end'], selected_date, selected_date)
+
+        table.append({
+            'num': lt['num'],
+            'time_range': f"{lt['start'].strftime('%H:%M')} - {lt['end'].strftime('%H:%M')}",
+            'lessons': lessons,
+            'is_now': is_now  # Добавляем флаг
+        })
+
+    return render(request, 'schedule/teacher_detail.html', {
+        'teacher': teacher,
+        'schedule_table': table,
+        'hours_info': get_stats(teacher_id=teacher_id),
+        'selected_date': selected_date.strftime("%d.%m.%Y"),
+        'selected_day_full': DAYS_FULL[selected_date.weekday()],
+        'date_mode': date_mode,
+        'custom_date': request.GET.get("custom_date", "")
+    })
+
+
+def matrix_view(request):
+    """Общая матрица всех групп на выбранный день"""
+    selected_date, date_mode = get_selected_date(request)
+    groups = Group.objects.all().order_by('name')
+    schedule_qs = Schedule.objects.filter(date=selected_date).select_related('subject', 'teacher', 'group')
+
+    now_utc = datetime.utcnow()
+    now_msk = now_utc + timedelta(hours=3)
+    now_time = now_msk.time()
+    now_date = now_msk.date()
+
+    is_today = (selected_date == now_date)
+
+    lesson_times_with_flag = []
+    for lt in LESSON_TIMES:
+        is_now = is_today and (lt['start'] <= now_time <= lt['end'])
+        lesson_times_with_flag.append({
+            'num': lt['num'],
+            'start': lt['start'],
+            'end': lt['end'],
+            'is_now': is_now
+        })
+
+    matrix = []
+    for g in groups:
+        slots = []
+        for idx, lt in enumerate(LESSON_TIMES):
+            lessons = [s for s in schedule_qs if s.group_id == g.id and lt['start'] <= s.time < lt['end']]
+            slots.append({
+                'lessons': lessons,
+                'is_now': lesson_times_with_flag[idx]['is_now']
+            })
+        matrix.append({'group': g, 'slots': slots})
+
+    return render(request, 'schedule/matrix.html', {
+        'matrix': matrix,
+        'lesson_times': lesson_times_with_flag,
+        'selected_date': selected_date.strftime("%d.%m.%Y"),
+        'selected_day_full': DAYS_FULL[selected_date.weekday()],
+        'date_mode': date_mode,
+        'custom_date': request.GET.get("custom_date", "")
     })
 
 
 def teachers_list(request):
-    teachers = Teacher.objects.all().order_by('name')
-    return render(request, 'schedule/teachers.html', {'teachers': teachers})
-
-
-def subjects_list(request):
-    subjects = Subject.objects.all().order_by('title')
-    return render(request, 'schedule/subjects.html', {'subjects': subjects})
+    return render(request, 'schedule/teachers.html', {'teachers': Teacher.objects.all().order_by('name')})
 
 
 def groups_list(request):
-    groups = Group.objects.all().order_by('name')
-    return render(request, 'schedule/groups.html', {'groups': groups})
+    return render(request, 'schedule/groups.html', {'groups': Group.objects.all().order_by('name')})
+
+
+def subjects_list(request):
+    return render(request, 'schedule/subjects.html', {'subjects': Subject.objects.all().order_by('title')})
+
 
 def group_detail(request, group_id):
     group = get_object_or_404(Group, id=group_id)
-    schedule = Schedule.objects.filter(group=group).order_by('day_of_week', 'time')
-
-    schedule_by_day = {}
-    for s in schedule:
-        day = s.get_day_of_week_display()
-        schedule_by_day.setdefault(day, []).append(s)
-
     return render(request, 'schedule/group_detail.html', {
         'group': group,
-        'schedule_by_day': schedule_by_day,
+        'hours_info': get_stats(group_id=group_id)
     })
 
 
 def subject_detail(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
-    groups = Group.objects.filter(schedule__subject=subject).distinct()
-
-    return render(request, 'schedule/subject_detail.html', {
-        'subject': subject,
-        'groups': groups,
-    })
-
-
-def teacher_detail(request, teacher_id):
-    teacher = get_object_or_404(Teacher, id=teacher_id)
-    schedule = Schedule.objects.filter(teacher=teacher).order_by('day_of_week', 'time')
-
-    schedule_by_day = {}
-    for s in schedule:
-        day = s.get_day_of_week_display()
-        schedule_by_day.setdefault(day, []).append(s)
-
-    return render(request, 'schedule/teacher_detail.html', {
-        'teacher': teacher,
-        'schedule_by_day': schedule_by_day,
-    })
-
-def matrix_view(request):
-
-    try:
-        locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
-    except:
-        locale.setlocale(locale.LC_TIME, 'Russian_Russia.1251')
-
-    today = datetime.now() + timedelta(hours=3)
-
-    date_mode = request.GET.get("date_mode", "today")
-    custom_date = request.GET.get("custom_date")
-
-    if date_mode == "today":
-        selected_date = today
-    elif date_mode == "tomorrow":
-        selected_date = today + timedelta(days=1)
-    elif date_mode == "custom" and custom_date:
-        selected_date = datetime.strptime(custom_date, "%Y-%m-%d")
-    else:
-        selected_date = today
-
-    selected_day = DAYS_MAPPING.get(selected_date.strftime('%A').capitalize(), "Пн")
-
-    groups = Group.objects.all().order_by('name')
-    schedule_qs = Schedule.objects.filter(day_of_week=selected_day).order_by('time')
-
-    duration_order = {'half1': 0, 'full': 1, 'half2': 2}
-
-    matrix = []
-
-    for group in groups:
-        row = {'group': group, 'slots': []}
-
-        group_lessons = schedule_qs.filter(group=group)
-
-        for lt in LESSON_TIMES:
-            cell_lessons = [
-                s for s in group_lessons
-                if lt['start'] <= s.time < lt['end']
-            ]
-            cell_lessons.sort(key=lambda s: duration_order.get(s.duration, 1))
-
-            row['slots'].append({
-                'num': lt['num'],
-                'start': lt['start'],
-                'end': lt['end'],
-                'name': lt['name'],
-                'lessons': cell_lessons,
-            })
-
-        matrix.append(row)
-
-    return render(request, 'schedule/matrix.html', {
-        'matrix': matrix,
-        'date_mode': date_mode,
-        'custom_date': custom_date,
-        'selected_date': selected_date.strftime("%d.%m.%Y"),
-        'selected_day': selected_day,
-        'selected_day_full': DAYS_FULL[selected_day],
-    })
-
-
-
-
+    groups = Group.objects.filter(plans__subject=subject).distinct()
+    return render(request, 'schedule/subject_detail.html', {'subject': subject, 'groups': groups})

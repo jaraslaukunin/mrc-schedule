@@ -5,244 +5,540 @@
 {% block content %}
 
 <div class="filter-card">
-    <h2 class="filter-title">Матрица расписания (группы × пары)</h2>
+    <h3 class="filter-title">
+        <i class="bi bi-grid-3x3-gap-fill"></i> Матрица расписания (группы × пары)
+    </h3>
 
-    <form method="get" class="date-filter">
-
+    <form method="get" id="matrix-form">
         <div class="date-buttons">
-
-        <!-- СЕГОДНЯ -->
             <button type="submit" name="date_mode" value="today"
-                onclick="document.getElementById('custom-date-block').remove()"
-                class="date-btn {% if date_mode == 'today' %}active{% endif %}">
-                Сегодня
+                    class="date-btn {% if date_mode == 'today' %}active{% endif %}">
+                <i class="bi bi-sun"></i> Сегодня
             </button>
-
-        <!-- ЗАВТРА -->
             <button type="submit" name="date_mode" value="tomorrow"
-                onclick="document.getElementById('custom-date-block').remove()"
-                class="date-btn {% if date_mode == 'tomorrow' %}active{% endif %}">
-                Завтра
+                    class="date-btn {% if date_mode == 'tomorrow' %}active{% endif %}">
+                <i class="bi bi-moon-stars"></i> Завтра
             </button>
-
-        <!-- КАСТОМ -->
-            <button type="button"
-                onclick="document.getElementById('custom-date-block').style.display='block'"
-                class="date-btn {% if date_mode == 'custom' %}active{% endif %}">
-                Выбрать дату
+            <button type="button" onclick="showCustomDate()"
+                    class="date-btn {% if date_mode == 'custom' %}active{% endif %}">
+                <i class="bi bi-calendar"></i> Выбрать дату
             </button>
-
         </div>
 
-        <div id="custom-date-block" style="margin-top:10px; {% if date_mode != 'custom' %}display:none{% endif %}">
-            <input type="hidden" name="date_mode" value="custom">
-
-            <input type="date" id="custom_date_input" name="custom_date"
-                value="{{ custom_date }}" class="date-input">
-
-            <button type="submit" class="apply-btn">
-                Применить
-            </button>
+        <div id="custom-date-block" style="margin-top: 15px; {% if date_mode != 'custom' %}display:none{% endif %}">
+            <input type="date" name="custom_date" value="{{ custom_date }}" class="date-input" id="custom_date">
+            <button type="submit" name="date_mode" value="custom" class="apply-btn">Применить</button>
         </div>
 
         <div class="selected-date">
-            Дата: <strong>{{ selected_date }}</strong> ({{ selected_day_full }})
+            <i class="bi bi-calendar-check"></i>
+            <strong>{{ selected_date }}</strong> ({{ selected_day_full }})
         </div>
-
     </form>
-
-
-
 </div>
 
-<table class="schedule-matrix">
-    <thead>
-        <tr>
-            <th>Группа</th>
-            {% for slot in matrix.0.slots %}
-            <th>
-                {{ slot.num }} пара<br>
-                {{ slot.start|time:"H:i" }}–{{ slot.end|time:"H:i" }}
-            </th>
-            {% endfor %}
-        </tr>
-    </thead>
-
-    <tbody>
-        {% for row in matrix %}
-        <tr>
-            <td>
-                <a href="{% url 'group_detail' row.group.id %}">
-                    {{ row.group.name }}
-                </a>
-            </td>
-
-            {% for slot in row.slots %}
-            <td>
-                <div class="matrix-cell">
-
-                    {% if slot.lessons|length == 0 %}
-                        <div class="matrix-lesson matrix-lesson-1 matrix-empty">
-                            Нет занятия
-                        </div>
-
-                    {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "full" %}
-                        <div class="matrix-lesson matrix-lesson-1">
-                            <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
-                                {{ slot.lessons.0.subject.title }}
-                            </a><br>
-                            <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
-                                {{ slot.lessons.0.teacher.name }}
-                            </a><br>
-                            {{ slot.lessons.0.get_classroom_full }}
-                        </div>
-
-                    {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "half1" %}
-                        <div class="matrix-lesson matrix-lesson-2">
-                            <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
-                                {{ slot.lessons.0.subject.title }}
-                            </a><br>
-                            <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
-                                {{ slot.lessons.0.teacher.name }}
-                            </a><br>
-                            {{ slot.lessons.0.get_classroom_full }}
-                        </div>
-                        <div class="matrix-lesson matrix-lesson-2 matrix-empty">
-                            Нет занятия
-                        </div>
-
-                    {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "half2" %}
-                        <div class="matrix-lesson matrix-lesson-2 matrix-empty">
-                            Нет занятия
-                        </div>
-                        <div class="matrix-lesson matrix-lesson-2">
-                            <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
-                                {{ slot.lessons.0.subject.title }}
-                            </a><br>
-                            <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
-                                {{ slot.lessons.0.teacher.name }}
-                            </a><br>
-                            {{ slot.lessons.0.get_classroom_full }}
-                        </div>
-
-                    {% elif slot.lessons|length == 2 %}
-                        {% for lesson in slot.lessons %}
-                        <div class="matrix-lesson matrix-lesson-2">
-                            <a href="{% url 'subject_detail' lesson.subject.id %}">
-                                {{ lesson.subject.title }}
-                            </a><br>
-                            <a href="{% url 'teacher_detail' lesson.teacher.id %}">
-                                {{ lesson.teacher.name }}
-                            </a><br>
-                            {{ lesson.get_classroom_full }}
-                        </div>
-                        {% endfor %}
+<div class="matrix-container">
+    <table class="schedule-matrix">
+        <thead>
+            <tr>
+                <th class="group-header"><i class="bi bi-people-fill"></i> Группа</th>
+                {% for slot in lesson_times %}
+                <th class="{% if slot.is_now %}current-pair-header{% endif %}">
+                    <div class="pair-number">{{ slot.num }} пара</div>
+                    <div class="pair-time">{{ slot.start|time:"H:i" }}–{{ slot.end|time:"H:i" }}</div>
+                    {% if slot.is_now %}
+                    <div class="pair-now-badge">
+                        <i class="bi bi-play-fill"></i> Сейчас
+                    </div>
                     {% endif %}
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in matrix %}
+            <tr>
+                <td class="group-cell">
+                    <a href="{% url 'group_detail' row.group.id %}" class="group-link">
+                        <i class="bi bi-people"></i> {{ row.group.name }}
+                    </a>
+                </td>
+                {% for slot in row.slots %}
+                <td class="matrix-cell-td {% if slot.is_now %}current-pair-cell{% endif %}">
+                    <div class="matrix-cell">
+                        {% if slot.lessons|length == 0 %}
+                            <div class="matrix-lesson matrix-empty">
+                                <i class="bi bi-clock"></i> Нет занятия
+                            </div>
 
-                </div>
-            </td>
+                        {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "full" %}
+                            <div class="matrix-lesson matrix-full">
+                                <div class="lesson-title">
+                                    <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
+                                        {{ slot.lessons.0.subject.title }}
+                                    </a>
+                                </div>
+                                <div class="lesson-teacher">
+                                    <i class="bi bi-person"></i>
+                                    <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
+                                        {{ slot.lessons.0.teacher.name }}
+                                    </a>
+                                </div>
+                                <div class="lesson-classroom">
+                                    <i class="bi bi-geo-alt"></i> {{ slot.lessons.0.get_classroom_full }}
+                                </div>
+                            </div>
+
+                        {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "half1" %}
+                            <div class="matrix-lesson matrix-half">
+                                <div class="lesson-title">
+                                    <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
+                                        {{ slot.lessons.0.subject.title }}
+                                    </a>
+                                </div>
+                                <div class="lesson-teacher">
+                                    <i class="bi bi-person"></i>
+                                    <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
+                                        {{ slot.lessons.0.teacher.name }}
+                                    </a>
+                                </div>
+                                <div class="lesson-classroom">
+                                    <i class="bi bi-geo-alt"></i> {{ slot.lessons.0.get_classroom_full }}
+                                </div>
+                            </div>
+                            <div class="matrix-lesson matrix-empty-small">
+                                <i class="bi bi-clock"></i> Нет занятия (2 пол.)
+                            </div>
+
+                        {% elif slot.lessons|length == 1 and slot.lessons.0.duration == "half2" %}
+                            <div class="matrix-lesson matrix-empty-small">
+                                <i class="bi bi-clock"></i> Нет занятия (1 пол.)
+                            </div>
+                            <div class="matrix-lesson matrix-half">
+                                <div class="lesson-title">
+                                    <a href="{% url 'subject_detail' slot.lessons.0.subject.id %}">
+                                        {{ slot.lessons.0.subject.title }}
+                                    </a>
+                                </div>
+                                <div class="lesson-teacher">
+                                    <i class="bi bi-person"></i>
+                                    <a href="{% url 'teacher_detail' slot.lessons.0.teacher.id %}">
+                                        {{ slot.lessons.0.teacher.name }}
+                                    </a>
+                                </div>
+                                <div class="lesson-classroom">
+                                    <i class="bi bi-geo-alt"></i> {{ slot.lessons.0.get_classroom_full }}
+                                </div>
+                            </div>
+
+                        {% elif slot.lessons|length == 2 %}
+                            {% for lesson in slot.lessons %}
+                            <div class="matrix-lesson matrix-half">
+                                <div class="lesson-title">
+                                    <a href="{% url 'subject_detail' lesson.subject.id %}">
+                                        {{ lesson.subject.title }}
+                                    </a>
+                                </div>
+                                <div class="lesson-teacher">
+                                    <i class="bi bi-person"></i>
+                                    <a href="{% url 'teacher_detail' lesson.teacher.id %}">
+                                        {{ lesson.teacher.name }}
+                                    </a>
+                                </div>
+                                <div class="lesson-classroom">
+                                    <i class="bi bi-geo-alt"></i> {{ lesson.get_classroom_full }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </td>
+                {% endfor %}
+            </tr>
             {% endfor %}
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
+</div>
 
 <style>
+    /* Карточка фильтра */
+    .filter-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
 
-.apply-btn {
-    padding: 8px 14px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-left: 10px;
-}
+    .filter-title {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 
-.apply-btn:hover {
-    background: var(--primary-dark);
-}
+    .filter-title i {
+        color: #667eea;
+        font-size: 20px;
+    }
 
-.date-filter {
-    margin-bottom: 20px;
-}
+    /* Кнопки даты */
+    .date-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
 
-.date-buttons {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-}
+    .date-btn {
+        padding: 8px 20px;
+        background: #f0f0f0;
+        border: 1px solid #e2e8f0;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
 
-.date-btn {
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: none;
-    background: var(--bg-gray);
-    cursor: pointer;
-}
+    .date-btn:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
 
-.date-btn.active {
-    background: var(--accent);
-    color: white;
-}
+    .date-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
 
-.date-input {
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-}
+    .date-input {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 25px;
+        font-size: 14px;
+    }
 
-.selected-date {
-    margin-top: 10px;
-    font-size: 14px;
-}
+    .date-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
 
-.schedule-matrix {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-}
+    .apply-btn {
+        padding: 8px 20px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        margin-left: 10px;
+        transition: all 0.2s;
+    }
 
-.schedule-matrix th,
-.schedule-matrix td {
-    border: 1px solid #dee2e6;
-    padding: 8px;
-    vertical-align: top;
-    text-align: left;
-}
+    .apply-btn:hover {
+        background: #5a67d8;
+    }
 
-.matrix-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    height: 100%;
-}
+    .selected-date {
+        margin-top: 15px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 14px;
+        color: #4a5568;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 
-.matrix-lesson {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 6px 8px;
-    font-size: 13px;
-}
+    .selected-date i {
+        color: #667eea;
+    }
 
-.matrix-lesson-1 {
-    height: 100%;
-}
+    /* Контейнер матрицы */
+    .matrix-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow-x: auto;
+    }
 
-.matrix-lesson-2 {
-    height: 50%;
-}
+    .schedule-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
 
-.matrix-empty {
-    background: #f1f3f5;
-    color: #999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    .schedule-matrix th,
+    .schedule-matrix td {
+        border: 1px solid #e2e8f0;
+        padding: 12px;
+        vertical-align: top;
+    }
+
+    .schedule-matrix th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #2d3748;
+        text-align: center;
+        padding: 15px 12px;
+        position: relative;
+    }
+
+    .group-header {
+        background: #f1f5f9 !important;
+    }
+
+    /* Подсветка текущей пары в заголовке */
+    .current-pair-header {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.08) 100%);
+        border-bottom: 3px solid #22c55e;
+        position: relative;
+    }
+
+    .current-pair-header .pair-number {
+        color: #22c55e;
+    }
+
+    .current-pair-header .pair-time {
+        color: #22c55e;
+        font-weight: 500;
+    }
+
+    /* Бейдж "Сейчас" в заголовке */
+    .pair-now-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #22c55e;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-top: 6px;
+        animation: blink 1s infinite;
+    }
+
+    .pair-now-badge i {
+        font-size: 8px;
+    }
+
+    /* Подсветка ячейки текущей пары */
+    .current-pair-cell {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.03) 100%);
+        position: relative;
+    }
+
+    .current-pair-cell::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #22c55e;
+        animation: slide 1s ease-in-out infinite;
+    }
+
+    @keyframes slide {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+
+    .pair-number {
+        font-size: 15px;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .pair-time {
+        font-size: 11px;
+        color: #718096;
+        margin-top: 4px;
+    }
+
+    /* Ячейка группы */
+    .group-cell {
+        background: #f8fafc;
+        font-weight: 500;
+        min-width: 120px;
+    }
+
+    .group-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #2d3748;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+
+    .group-link:hover {
+        color: #667eea;
+    }
+
+    .group-link i {
+        color: #667eea;
+    }
+
+    /* Матричная ячейка */
+    .matrix-cell-td {
+        padding: 8px !important;
+    }
+
+    .matrix-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-height: 100px;
+    }
+
+    .matrix-lesson {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 12px;
+        transition: all 0.2s;
+        border-left: 3px solid #667eea;
+    }
+
+    .matrix-lesson:hover {
+        transform: translateX(2px);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .matrix-full {
+        height: 100%;
+    }
+
+    .matrix-half {
+        height: auto;
+    }
+
+    .matrix-empty {
+        background: #f1f5f9;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-left-color: #cbd5e1;
+        min-height: 60px;
+    }
+
+    .matrix-empty-small {
+        background: #f1f5f9;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-left-color: #cbd5e1;
+        padding: 8px;
+        font-size: 11px;
+    }
+
+    .lesson-title {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 6px;
+    }
+
+    .lesson-title a {
+        color: #2d3748;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .lesson-title a:hover {
+        color: #667eea;
+    }
+
+    .lesson-teacher,
+    .lesson-classroom {
+        font-size: 11px;
+        color: #718096;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .lesson-teacher a {
+        color: #718096;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .lesson-teacher a:hover {
+        color: #667eea;
+    }
+
+    .lesson-teacher i,
+    .lesson-classroom i {
+        font-size: 10px;
+        color: #667eea;
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.85; transform: scale(1.02); }
+    }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+        .filter-card {
+            padding: 15px;
+        }
+
+        .date-buttons {
+            flex-direction: column;
+        }
+
+        .date-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .apply-btn {
+            margin-left: 0;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .schedule-matrix th,
+        .schedule-matrix td {
+            padding: 8px;
+        }
+
+        .pair-number {
+            font-size: 13px;
+        }
+
+        .pair-now-badge {
+            font-size: 8px;
+            padding: 2px 6px;
+        }
+    }
 </style>
+
+<script>
+    function showCustomDate() {
+        var block = document.getElementById('custom-date-block');
+        if (block.style.display === 'none') {
+            block.style.display = 'block';
+        } else {
+            block.style.display = 'none';
+        }
+    }
+</script>
 
 {% endblock %}
