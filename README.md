@@ -1,31 +1,25 @@
+<div align="center">
+
 # 📅 Расписание МРК
+
+**Веб-приложение для просмотра расписания занятий Минского радиотехнического колледжа**
 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-6-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-[![GitHub repository](https://img.shields.io/badge/GitHub-mrc--schedule-181717?style=for-the-badge&logo=github)](https://github.com/jaraslaukunin/mrc-schedule)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/docs/Web/HTML)
+[![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/docs/Web/CSS)
 
-Веб-приложение для удобного просмотра расписания занятий **Минского радиотехнического колледжа**.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-mrc--schedule-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jaraslaukunin/mrc-schedule)
 
-> **Автор:** jaraslaukunin  
-> **Группа:** 4К9392  
-> **Версия:** 1.3
+**[Возможности](#возможности)** · [Технологии](#технологии) · [Быстрый запуск](#быстрый-запуск) · [Доступные адреса](#доступные-адреса) · [Структура проекта](#структура-проекта) · [Лицензия](#лицензия) · [Автор](#автор)
 
-
----
-
-## Содержание
-
-- [Возможности](#возможности)
-- [Технологии](#технологии)
-- [Быстрый запуск](#быстрый-запуск)
-- [Доступные адреса](#доступные-адреса)
-- [Структура проекта](#структура-проекта)
-- [Вклад в проект](#вклад-в-проект)
-- [Лицензия](#лицензия)
-- [Автор](#автор)
+</div>
 
 ---
+
+> **Автор:** Кунин Ярослав · **Группа:** 4К9392 · **Версия:** 1.3
 
 ## Возможности
 
@@ -68,7 +62,7 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone [https://github.com/jaraslaukunin/mrc-schedule.git](https://github.com/jaraslaukunin/mrc-schedule.git)
+git clone https://github.com/jaraslaukunin/mrc-schedule.git
 cd mrc-schedule
 ```
 
@@ -207,7 +201,7 @@ mrc-schedule/
 
 ## Автор
 
-**jaraslaukunin**  
+**Кунин Ярослав Владимирович**  
 УО БГУИР, филиал «Минский радиотехнический колледж»  
 Группа **4К9392**  
 Специальность: *Разработка и сопровождение программного обеспечения информационных систем*
